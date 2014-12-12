@@ -1,12 +1,10 @@
-#include <ApplicationServices/ApplicationServices.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <stdio.h>   /* Standard input/output definitions */
-#include <stdlib.h>
-#include <string.h>  /* String function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <termios.h> /* POSIX terminal control definitions */
+#include <fcntl.h> 
+#include <termios.h> 
 #include <string.h> 
+
+#include <ApplicationServices/ApplicationServices.h>
 
 //scancodes to mac keycodes
 uint8_t keymap[] = {
@@ -22,10 +20,11 @@ uint8_t keymap[] = {
     0,0,0,0,0,0,0,0,0,0,
     0,0,0x33,0,0,0,0,0,0,0,
 };
-int open_port(void) {
+
+int open_serial() {
     int fd = open("/dev/tty.usbmodemfa131", O_RDWR | O_NOCTTY | O_NDELAY);      
 
-    if (fd == -1)     {
+    if (fd == -1) {
         perror("cannot open serial port");
     } else { 
         fcntl(fd, F_SETFL, 0);
@@ -42,9 +41,9 @@ int open_port(void) {
     options.c_cflag &= ~CSTOPB;
     options.c_cflag &= ~CSIZE;
     options.c_cflag |= CS8;
-    options.c_cflag |= (IXON | IXOFF | IXANY); // xon & xoff on
+    options.c_cflag |= (IXON | IXOFF | IXANY);
     
-    return (fd);
+    return fd;
  }
 
 CGKeyCode scanToKey(uint8_t scancode) {
@@ -55,10 +54,13 @@ void keyPress(uint8_t keycode) {
     CGEventRef keyUp = CGEventCreateKeyboardEvent(NULL, keycode, false);
     CGEventPost(kCGHIDEventTap, keyDown);
     CGEventPost(kCGHIDEventTap, keyUp);
-
-    //CGEventSetFlags(keyDown, CGEventGetFlags(keyDown) | kCGEventFlagMaskShift);
-    //CGEventSetIntegerValueField(keyDown, kCGKeyboardEventAutorepeat, 1);
     
+    /* This will be useful later
+     *
+    CGEventSetFlags(keyDown, CGEventGetFlags(keyDown) | kCGEventFlagMaskShift);
+    CGEventSetIntegerValueField(keyDown, kCGKeyboardEventAutorepeat, 1);
+    */
+
     CFRelease(keyDown);
     CFRelease(keyUp);
 }
@@ -70,15 +72,13 @@ int main() {
         return 1;
     }
 
-    uint8_t buffer[4096];
+    uint8_t buffer[1024];
     int last_release = 0;
 
     while(1) {
         int byteCount = read(fd, buffer, 32);
         buffer[byteCount] = '\0';
-    //    printf("read %d bytes: ", byteCount);
         for (int i = 0; i<byteCount; i++) {
-  //          printf("%#x ", buffer[i]);
             if (buffer[i] == 0xF0) {
                 last_release = 1;
                 continue;
@@ -89,9 +89,6 @@ int main() {
             }
             last_release = 0;
         }
-//        printf("\n");
-        
-        //keyPress(scanToKey(0x1c));
     };
 
     return 0;
