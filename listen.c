@@ -6,6 +6,11 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
+
+//TODO: make this a command line argument?
+
+#define SERIAL_PORT "/dev/tty.usbmodemfa131"
+
 //scancodes to mac keycodes
 uint8_t keymap[] = {
     0,0,0,0,0,0,0,0,0,0,
@@ -22,7 +27,7 @@ uint8_t keymap[] = {
 };
 
 int open_serial() {
-    int fd = open("/dev/tty.usbmodemfa131", O_RDWR | O_NOCTTY | O_NDELAY);      
+    int fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);      
 
     if (fd == -1) {
         perror("cannot open serial port");
@@ -66,7 +71,7 @@ void keyPress(uint8_t keycode) {
 }
 
 int main() {
-    int fd = open_port();
+    int fd = open_serial();
     
     if (fd < 0) {
         return 1;
