@@ -1,5 +1,6 @@
-#include <unistd.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <unistd.h>
 #include <fcntl.h> 
 #include <termios.h> 
 #include <string.h> 
@@ -73,7 +74,10 @@ int open_serial() {
     return fd;
  }
 
-CGKeyCode scanToKey(uint8_t scancode) {
+CGKeyCode scanToKey(uint8_t scancode, bool special) {
+    if (special) {
+        return (CGKeyCode) special_keymap[scancode];
+    }
     return (CGKeyCode) keymap[scancode];
 }
 
@@ -108,31 +112,34 @@ int main() {
     }
 
     uint8_t buffer[1024];
-    int last_release = 0;
-
+    bool last_release = false;
+    bool special = false;
     while(1) {
         int byteCount = read(fd, buffer, 32);
         buffer[byteCount] = '\0';
         for (int i = 0; i<byteCount; i++) {
             fprintf(stderr, "%#x\n", buffer[i]);
-
-            //TODO: fix this
-            if (buffer[i] == 0xE0 && buffer[i+1] == 0xF0) {
-                last_release = 1;
-                i++;
+            if (buffer[i] == 0x0) {
+                last_release = false;
+                special = false;
                 continue;
             }
-            if (buffer[i] == 0xF0) { 
-                last_release = 1;
+            if (buffer[i] == 0xE0) {
+                special = true;
+                continue;
+            }
+            if (buffer[i] == 0xF0 || buffer[i] == 0x80) {
+                last_release = true;
                 continue;
             }
 
             if (!last_release) {
-                keyPress(scanToKey(buffer[i]));
+                keyPress(scanToKey(buffer[i], special));
             } else {
-                keyRelease(scanToKey(buffer[i]));    
+                keyRelease(scanToKey(buffer[i], special));
             }
-            last_release = 0;
+            last_release = false;
+            special = false;
         }
     };
 
