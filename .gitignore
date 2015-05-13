@@ -1,3 +1,4 @@
 listen
 
 *.dSYM
+.DS_Store
