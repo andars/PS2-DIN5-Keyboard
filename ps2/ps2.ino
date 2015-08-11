@@ -10,6 +10,12 @@ char keymap[] = {
 0,0,0,0,0,'l',0,'p',0,0
 };
 */
+
+/*
+Blue to pin 3 (clock)
+Yellow to pin 4 (data)
+*/
+
 const int dataPin = 4;
 
 uint16_t buffer[256];
@@ -23,7 +29,7 @@ void setup() {
   
   pinMode(dataPin, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
-  attachInterrupt(1, read, FALLING); 
+  attachInterrupt(1, read, FALLING); //interrupt on pin 3
 }
 
 void loop() {
