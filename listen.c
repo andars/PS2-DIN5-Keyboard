@@ -4,6 +4,7 @@
 #include <fcntl.h> 
 #include <termios.h> 
 #include <string.h> 
+#include <ev.h>
 
 #include <ApplicationServices/ApplicationServices.h>
 
@@ -104,44 +105,62 @@ void keyType(uint8_t keycode) {
     */
 }
 
+static void serialCallback(struct ev_loop *loop, struct ev_io *watcher, int rev) {
+    uint8_t buffer[1024];
+    static bool last_release = false;
+    static bool special = false;
+
+    int byteCount = read(watcher->fd, buffer, 32);
+
+
+    buffer[byteCount] = '\0';
+
+    for (int i = 0; i<byteCount; i++) {
+        fprintf(stderr, "%#x\n", buffer[i]);
+
+        if (buffer[i] == 0x0) {
+            last_release = false;
+            special = false;
+            continue;
+        }
+
+        if (buffer[i] == 0xE0) {
+            special = true;
+            continue;
+        }
+
+        if (buffer[i] == 0xF0 || buffer[i] == 0x80) {
+            last_release = true;
+            keyRelease(scanToKey(buffer[i-1], special));
+            continue;
+        }
+
+        if (!last_release) {
+            keyPress(scanToKey(buffer[i], special));
+        } else {
+            keyRelease(scanToKey(buffer[i], special));
+        }
+        last_release = false;
+        special = false;
+    }
+}
+
 int main() {
     int fd = open_serial();
-    
+
     if (fd < 0) {
         return 1;
     }
 
-    uint8_t buffer[1024];
-    bool last_release = false;
-    bool special = false;
-    while(1) {
-        int byteCount = read(fd, buffer, 32);
-        buffer[byteCount] = '\0';
-        for (int i = 0; i<byteCount; i++) {
-            fprintf(stderr, "%#x\n", buffer[i]);
-            if (buffer[i] == 0x0) {
-                last_release = false;
-                special = false;
-                continue;
-            }
-            if (buffer[i] == 0xE0) {
-                special = true;
-                continue;
-            }
-            if (buffer[i] == 0xF0 || buffer[i] == 0x80) {
-                last_release = true;
-                continue;
-            }
+    struct ev_loop *loop;
+    struct ev_io serial_watcher;
 
-            if (!last_release) {
-                keyPress(scanToKey(buffer[i], special));
-            } else {
-                keyRelease(scanToKey(buffer[i], special));
-            }
-            last_release = false;
-            special = false;
-        }
-    };
+    loop = ev_default_loop(0);
+
+    ev_io_init(&serial_watcher, serialCallback, fd, EV_READ);
+    ev_io_start(loop, &serial_watcher);
+
+    ev_run(loop, 0);
 
     return 0;
 }
