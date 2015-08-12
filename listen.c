@@ -112,6 +112,10 @@ static void serialCallback(struct ev_loop *loop, struct ev_io *watcher, int rev)
 
     int byteCount = read(watcher->fd, buffer, 32);
 
+    if (byteCount < 0) {
+        perror("fail to read, exiting");
+        exit(1);
+    }
 
     buffer[byteCount] = '\0';
 
